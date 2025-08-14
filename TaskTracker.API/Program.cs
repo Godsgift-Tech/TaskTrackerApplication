@@ -4,13 +4,21 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
+using TaskTracker.Application;
+using TaskTracker.Application.Features.Common.Interfaces;
+using TaskTracker.Application.Features.Tasks.Command.CompleteTaskCommand;
 using TaskTracker.Core.Entity;
 using TaskTracker.Infrastructure.Data;
 using TaskTracker.Infrastructure.Identity;
+using TaskTracker.Infrastructure.Repository;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ITaskRepository, TaskRepository>();
+
+builder.Services.AddApplication();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
