@@ -34,7 +34,12 @@ namespace TaskTracker.Infrastructure.Repository
         // Manager lookup
         public Task<TaskItem?> GetByIdAnyAsync(Guid id)
             => _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
-
+        public async Task<List<TaskItem>> GetTasksByUserIdAsync(string userId)
+        {
+            return await _context.Tasks
+                .Where(t => t.AssignedToUserId == userId)
+                .ToListAsync();
+        }
         public async Task AddAsync(TaskItem task)
         {
             await _context.Tasks.AddAsync(task);
@@ -47,17 +52,18 @@ namespace TaskTracker.Infrastructure.Repository
             await _context.SaveChangesAsync();
         }
 
-        public async Task<bool> DeleteAsync(Guid id, string userId)
+        public async Task<bool> DeleteAsync(Guid id, string? userId)
         {
-            var task = await _context.Tasks
-                .FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
+            var task = userId == null
+                ? await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id)
+                : await _context.Tasks.FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
 
-            if (task == null)
-                return false;
+            if (task == null) return false;
 
             _context.Tasks.Remove(task);
             await _context.SaveChangesAsync();
             return true;
         }
+
     }
 }

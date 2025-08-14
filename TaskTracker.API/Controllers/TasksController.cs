@@ -4,9 +4,11 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using TaskTracker.Application.Features.Tasks.Command.CompleteTaskCommand;
 using TaskTracker.Application.Features.Tasks.Command.CreateCommand;
+using TaskTracker.Application.Features.Tasks.Command.DeleteCommand;
 using TaskTracker.Application.Features.Tasks.Command.UpdateCommand;
 using TaskTracker.Application.Features.Tasks.Queries.GetAllTasks;
 using TaskTracker.Application.Features.Tasks.Queries.GetTaskById;
+using TaskTracker.Core.Entity;
 
 namespace TaskTracker.API.Controllers
 {
@@ -36,16 +38,29 @@ namespace TaskTracker.API.Controllers
         // Update task - only if task belongs to user
         [HttpPut("{id}")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateTaskCommand command)
+        public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskCommand command)
         {
+            // Get logged-in user's ID from claims
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            command.Id = id;
-            command.UserId = userId!;
+            if (string.IsNullOrEmpty(userId))
+                return Unauthorized("User not authenticated.");
 
-            var updated = await _mediator.Send(command);
-            if (!updated) return Forbid("You are not authorized to update this task.");
+            // Checking route ID matches the command ID
+            if (id != command.Id)
+                return BadRequest("Task ID mismatch.");
 
-            return NoContent();
+            // Attach user ID from claims
+            command.UserId = userId;
+
+            var result = await _mediator.Send(command);
+
+            if (result == null)
+            {
+                // Check if task exists at all for better feedback
+                return Forbid("You are not authorized to update this task or it does not exist.");
+            }
+
+            return Ok(result);
         }
 
         // Complete task - only if task belongs to user
@@ -88,29 +103,39 @@ namespace TaskTracker.API.Controllers
         [Authorize(Roles = "Manager")]
         public async Task<IActionResult> GetCompletionReport()
         {
-            var report = await _mediator.Send(new GetTaskCompletionReportQuery());
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); //  JWT or identity claims
+
+            var report = await _mediator.Send(new GetTaskCompletionReportQuery(userId));
+
             return Ok(report);
         }
 
-        [HttpPatch("{id}/complete")]
+        // Get all tasks for the logged-in user
+        [HttpGet]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> Complete(Guid id)
+        public async Task<IActionResult> GetUserTasks()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isManager = User.IsInRole("Manager");
+            var query = new GetAllTasksQuery { AssignedToUserId = userId! }; 
+            var tasks = await _mediator.Send(query);
+            return Ok(tasks);
+        }
 
-            var cmd = new CompleteTaskCommand
-            {
-                Id = id,
-                UserId = userId!,
-                IsManager = isManager
-            };
 
-            var ok = await _mediator.Send(cmd);
-            if (!ok) return NotFound(new { message = "Task not found or access denied." });
+        // Delete task - only if owned by the user or manager
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "User,Manager")]
+       
+        public async Task<IActionResult> DeleteTask(Guid id)
+        {
+            var deleted = await _mediator.Send(new DeleteTaskCommand { Id = id });
+            if (!deleted)
+                return Forbid("You are not authorized to delete this task or it does not exist.");
 
             return NoContent();
         }
+
+
 
     }
 }

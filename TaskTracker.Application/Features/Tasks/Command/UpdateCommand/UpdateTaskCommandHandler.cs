@@ -1,9 +1,7 @@
 ﻿using MediatR;
 using Microsoft.Extensions.Caching.Memory;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using TaskTracker.Application.Features.Common.Interfaces;
 using TaskTracker.Core.Entity;
@@ -23,16 +21,20 @@ namespace TaskTracker.Application.Features.Tasks.Command.UpdateCommand
 
         public async Task<TaskItem> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
         {
+            // Retrieve task only if it belongs to the given user
             var existingTask = await _taskRepository.GetByIdAsync(request.Id, request.UserId);
-            if (existingTask == null) return null;
+            if (existingTask == null)
+                return null;
 
+            // Update fields
             existingTask.Title = request.Title;
             existingTask.Description = request.Description;
-            existingTask.DueDate = (DateTime)request.DueDate;
+            // keep old date
+            existingTask.DueDate = request.DueDate ?? existingTask.DueDate; 
 
             await _taskRepository.UpdateAsync(existingTask);
 
-            // Invalidate cache
+            // Invalidate cache to ensure fresh data on next retrieval
             _cache.Remove($"Task_{request.UserId}_{request.Id}");
 
             return existingTask;

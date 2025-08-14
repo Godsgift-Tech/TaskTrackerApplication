@@ -10,6 +10,6 @@ namespace TaskTracker.Application.Features.Tasks.Command.DeleteCommand
     public class DeleteTaskCommand : IRequest<bool>
     {
         public Guid Id { get; set; }
-        public string UserId { get; set; }
     }
+
 }
