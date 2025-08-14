@@ -12,14 +12,10 @@ namespace TaskTracker.Application.Features.Tasks.Report
         public int CompletedTasks { get; set; }
         public int PendingTasks { get; set; }
         public int InProgressTasks { get; set; }
-        public double CompletionRate
-        {
-            get
-            {
-                if (TotalTasks == 0) return 0;
-                return Math.Round((double)CompletedTasks / TotalTasks * 100, 2);
-            }
-        }
-        public DateTime ReportGeneratedAt { get; set; } = DateTime.UtcNow;
+        public double CompletionRate { get; set; }
+        public DateTime ReportGeneratedAt { get; set; }
+
+        public List<TaskDetail> TaskDetails { get; set; } = new();
     }
+
 }

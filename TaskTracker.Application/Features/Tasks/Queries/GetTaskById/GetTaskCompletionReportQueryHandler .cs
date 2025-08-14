@@ -1,11 +1,12 @@
 ﻿using MediatR;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using TaskTracker.Application.Features.Common.Interfaces;
 using TaskTracker.Application.Features.Tasks.Queries.GetTaskById;
 using TaskTracker.Application.Features.Tasks.Report;
 using TaskTracker.Core.Entity;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 using TaskStatus = TaskTracker.Core.Entity.TaskStatus;
 
 public class GetTaskCompletionReportQueryHandler
@@ -20,19 +21,38 @@ public class GetTaskCompletionReportQueryHandler
 
     public async Task<TaskReport> Handle(GetTaskCompletionReportQuery request, CancellationToken cancellationToken)
     {
-        var userTasks = await _taskRepository.GetTasksByUserIdAsync(request.UserId);
+        // Fetch tasks depending on role
+        var tasks = request.IsManager
+            ? await _taskRepository.GetAllAsync(
+                userId: null,             // all users
+                pageNumber: 1,
+                pageSize: int.MaxValue     // fetch all tasks for report
+              )
+            : await _taskRepository.GetTasksByUserIdAsync(request.UserId);
 
-        var total = userTasks.Count;
-        var completed = userTasks.Count(t => t.Status == TaskStatus.Completed);
-        var pending = userTasks.Count(t => t.Status == TaskStatus.Pending);
-        var inProgress = userTasks.Count(t => t.Status == TaskStatus.InProgress);
+        var total = tasks.Count;
+        var completed = tasks.Count(t => t.Status == TaskStatus.Completed);
+        var pending = tasks.Count(t => t.Status == TaskStatus.Pending);
+        var inProgress = tasks.Count(t => t.Status == TaskStatus.InProgress);
+        double completionRate = total == 0 ? 0 : (completed / (double)total) * 100;
+
+        var taskDetails = tasks.Select(t => new TaskDetail
+        {
+            Id = t.Id,
+            Title = t.Title,
+            AssignedToUserId = t.AssignedToUserId,
+            Status = (System.Threading.Tasks.TaskStatus)t.Status,
+        }).ToList();
 
         return new TaskReport
         {
             TotalTasks = total,
             CompletedTasks = completed,
             PendingTasks = pending,
-            InProgressTasks = inProgress
+            InProgressTasks = inProgress,
+            CompletionRate = completionRate,
+            ReportGeneratedAt = DateTime.UtcNow,
+            TaskDetails = taskDetails
         };
     }
 }

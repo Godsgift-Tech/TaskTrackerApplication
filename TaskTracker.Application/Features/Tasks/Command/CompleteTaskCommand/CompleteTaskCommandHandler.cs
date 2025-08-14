@@ -20,7 +20,7 @@ namespace TaskTracker.Application.Features.Tasks.Command.CompleteTaskCommand
         {
             // Managers can complete any task; users can complete only their own
             var task = request.IsManager
-                ? await _tasks.GetByIdAnyAsync(request.Id)
+                ? await _tasks.GetByIdAsync(request.Id)
                 : await _tasks.GetByIdAsync(request.Id, request.UserId);
 
             if (task is null) return false;
