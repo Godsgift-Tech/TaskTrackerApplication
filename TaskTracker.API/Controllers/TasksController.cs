@@ -121,7 +121,7 @@ namespace TaskTracker.API.Controllers
 
 
         [HttpGet("reports/completion")]
-        [Authorize(Roles = "User,Manager")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> GetTaskCompletionReport()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -136,7 +136,7 @@ namespace TaskTracker.API.Controllers
 
 
         // Get all tasks for the logged-in user
-        [HttpGet("all")]
+        [HttpGet("allTasks")]
         [Authorize(Roles = "User,Manager")]
         public async Task<ActionResult<PagedList<TaskDto>>> GetAll(
             [FromQuery] int pageNumber = 1,
