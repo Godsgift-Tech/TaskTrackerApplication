@@ -6,6 +6,7 @@ using TaskTracker.Application.Features.Tasks.Command.CompleteTaskCommand;
 using TaskTracker.Application.Features.Tasks.Command.CreateCommand;
 using TaskTracker.Application.Features.Tasks.Command.DeleteCommand;
 using TaskTracker.Application.Features.Tasks.Command.UpdateCommand;
+using TaskTracker.Application.Features.Tasks.DTO;
 using TaskTracker.Application.Features.Tasks.Queries.GetAllTasks;
 using TaskTracker.Application.Features.Tasks.Queries.GetTaskById;
 using TaskTracker.Core.Entity;
@@ -137,26 +138,32 @@ namespace TaskTracker.API.Controllers
         // Get all tasks for the logged-in user
         [HttpGet("all")]
         [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetAllTasks(
-        int pageNumber = 1,
-        int pageSize = 10)
+        public async Task<ActionResult<PagedList<TaskDto>>> GetAll(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
         {
+            // Get current user's ID
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            // Determine if the user is a manager (based on role claim)
+            var isManager = User.IsInRole("Manager");
 
             var query = new GetAllTasksQuery
             {
-                AssignedToUserId = role == "Manager" ? null : userId, // Manager sees all
+                AssignedToUserId = userId,
                 PageNumber = pageNumber,
                 PageSize = pageSize,
-                IsManager = role == "Manager"
+                FromDate = fromDate,
+                ToDate = toDate,
+                IsManager = isManager
             };
 
-            PagedList<TaskItem> tasks = await _mediator.Send(query);
+            var result = await _mediator.Send(query);
 
-            return Ok(tasks);
+            return Ok(result);
         }
-
 
         // Delete task - only if owned by the user or manager
         [HttpDelete("{id}")]

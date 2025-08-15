@@ -1,4 +1,5 @@
 ﻿using MediatR;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading;
@@ -23,12 +24,8 @@ public class GetTaskCompletionReportQueryHandler
     {
         // Fetch tasks depending on role
         var tasks = request.IsManager
-            ? await _taskRepository.GetAllAsync(
-                userId: null,             // all users
-                pageNumber: 1,
-                pageSize: int.MaxValue     // fetch all tasks for report
-              )
-            : await _taskRepository.GetTasksByUserIdAsync(request.UserId);
+            ? await _taskRepository.QueryAll().ToListAsync(cancellationToken)
+            : await _taskRepository.QueryByUserId(request.UserId).ToListAsync(cancellationToken);
 
         var total = tasks.Count;
         var completed = tasks.Count(t => t.Status == TaskStatus.Completed);
@@ -41,7 +38,7 @@ public class GetTaskCompletionReportQueryHandler
             Id = t.Id,
             Title = t.Title,
             AssignedToUserId = t.AssignedToUserId,
-            Status = (System.Threading.Tasks.TaskStatus)t.Status,
+            Status = (System.Threading.Tasks.TaskStatus)t.Status // Use your own TaskStatus enum
         }).ToList();
 
         return new TaskReport
