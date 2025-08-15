@@ -29,9 +29,8 @@ namespace TaskTracker.API.Controllers
         public async Task<IActionResult> Register([FromBody] RegisterDto registerDto)
         {
             if (registerDto == null || !ModelState.IsValid)
-            {
                 return BadRequest("Invalid registration data.");
-            }
+
             var user = new User
             {
                 UserName = registerDto.Email,
@@ -39,13 +38,20 @@ namespace TaskTracker.API.Controllers
                 FirstName = registerDto.FirstName,
                 LastName = registerDto.LastName
             };
+
             var result = await _userManager.CreateAsync(user, registerDto.Password);
+
             if (result.Succeeded)
             {
+                // Assign default role "User"
+                await _userManager.AddToRoleAsync(user, "User");
+
                 return Ok("User registered successfully.");
             }
+
             return BadRequest(result.Errors);
         }
+
 
 
         [HttpPost("login")]

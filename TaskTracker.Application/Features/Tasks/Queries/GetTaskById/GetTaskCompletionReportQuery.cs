@@ -11,13 +11,12 @@ namespace TaskTracker.Application.Features.Tasks.Queries.GetTaskById
     public class GetTaskCompletionReportQuery : IRequest<TaskReport>
     {
         public string UserId { get; }
+        public bool IsManager { get; }
 
-        public GetTaskCompletionReportQuery(string userId)
+        public GetTaskCompletionReportQuery(string userId, bool isManager)
         {
-            if (string.IsNullOrWhiteSpace(userId))
-                throw new ArgumentException("UserId is required", nameof(userId));
-
             UserId = userId;
+            IsManager = isManager;
         }
     }
 

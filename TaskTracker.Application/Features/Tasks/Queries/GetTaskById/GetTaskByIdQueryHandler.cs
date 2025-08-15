@@ -21,22 +21,9 @@ namespace TaskTracker.Application.Features.Tasks.Queries.GetTaskById
             _cache = cache;
         }
 
-        public async Task<TaskItem> Handle(GetTaskByIdQuery request, CancellationToken cancellationToken)
+        public async Task<TaskItem?> Handle(GetTaskByIdQuery request, CancellationToken cancellationToken)
         {
-            var cacheKey = $"Task_{request.UserId}_{request.Id}";
-
-            if (_cache.TryGetValue(cacheKey, out TaskItem cachedTask))
-            {
-                return cachedTask;
-            }
-
-            var task = await _taskRepository.GetByIdAsync(request.Id, request.UserId);
-            if (task != null)
-            {
-                _cache.Set(cacheKey, task, TimeSpan.FromMinutes(2));
-            }
-
-            return task;
+            return await _taskRepository.GetByIdAsync(request.Id, request.IsManager ? null : request.UserId);
         }
     }
 }

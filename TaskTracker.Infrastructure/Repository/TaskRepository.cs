@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 using TaskTracker.Application.Features.Common.Interfaces;
 using TaskTracker.Core.Entity;
@@ -17,29 +16,69 @@ namespace TaskTracker.Infrastructure.Repository
 
         public TaskRepository(TaskTrackerContext context) => _context = context;
 
-        public async Task<PagedList<TaskItem>> GetAllAsync(string userId, int pageNumber, int pageSize, DateTime? fromDate = null, DateTime? toDate = null)
+        public IQueryable<TaskItem> QueryAll()
         {
-            var query = _context.Tasks.Where(t => t.AssignedToUserId == userId);
+            // Return IQueryable so handler can use  DTO to filter further
+            return _context.Tasks.Include(t => t.User).AsQueryable();
+        }
 
-            if (fromDate.HasValue) query = query.Where(t => t.CreatedAt >= fromDate.Value);
-            if (toDate.HasValue) query = query.Where(t => t.CreatedAt <= toDate.Value);
+        public IQueryable<TaskItem> QueryByUserId(string userId)
+        {
+            return _context.Tasks
+                .Include(t => t.User)
+                .Where(t => t.AssignedToUserId == userId)
+                .AsQueryable();
+        }
+        public async Task<PagedList<TaskItem>> GetAllAsync(
+            string? userId = null,
+            int pageNumber = 1,
+            int pageSize = 10,
+            DateTime? fromDate = null,
+            DateTime? toDate = null)
+        {
+            var query = _context.Tasks.Include(t => t.User).AsQueryable();
 
-            query = query.OrderByDescending(t => t.CreatedAt).AsNoTracking();
+            if (!string.IsNullOrEmpty(userId))
+                query = query.Where(t => t.AssignedToUserId == userId);
+
+            if (fromDate.HasValue)
+                query = query.Where(t => t.CreatedAt >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(t => t.CreatedAt <= toDate.Value);
+
+            query = query.OrderByDescending(t => t.CreatedAt);
+
             return await PagedList<TaskItem>.CreateAsync(query, pageNumber, pageSize);
         }
 
-        public Task<TaskItem?> GetByIdAsync(Guid id, string userId)
-            => _context.Tasks.AsNoTracking().FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
+        public async Task<TaskItem?> GetByIdAsync(Guid id, string? userId = null, bool isManager = false)
+        {
+            if (isManager)
+                return await _context.Tasks.AsNoTracking()
+                    .FirstOrDefaultAsync(t => t.Id == id);
 
-        // Manager lookup
-        public Task<TaskItem?> GetByIdAnyAsync(Guid id)
-            => _context.Tasks.FirstOrDefaultAsync(t => t.Id == id);
+            if (string.IsNullOrEmpty(userId)) return null;
+
+            return await _context.Tasks.AsNoTracking()
+                .FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
+        }
+
+        public async Task<List<TaskItem>> GetAllAsync(string? userId = null)
+        {
+            return await _context.Tasks
+                .AsNoTracking()
+                .Where(t => userId == null || t.AssignedToUserId == userId)
+                .ToListAsync();
+        }
+
         public async Task<List<TaskItem>> GetTasksByUserIdAsync(string userId)
         {
             return await _context.Tasks
                 .Where(t => t.AssignedToUserId == userId)
                 .ToListAsync();
         }
+
         public async Task AddAsync(TaskItem task)
         {
             await _context.Tasks.AddAsync(task);
@@ -64,6 +103,5 @@ namespace TaskTracker.Infrastructure.Repository
             await _context.SaveChangesAsync();
             return true;
         }
-
     }
 }

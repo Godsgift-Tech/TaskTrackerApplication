@@ -6,9 +6,11 @@ using TaskTracker.Application.Features.Tasks.Command.CompleteTaskCommand;
 using TaskTracker.Application.Features.Tasks.Command.CreateCommand;
 using TaskTracker.Application.Features.Tasks.Command.DeleteCommand;
 using TaskTracker.Application.Features.Tasks.Command.UpdateCommand;
+using TaskTracker.Application.Features.Tasks.DTO;
 using TaskTracker.Application.Features.Tasks.Queries.GetAllTasks;
 using TaskTracker.Application.Features.Tasks.Queries.GetTaskById;
 using TaskTracker.Core.Entity;
+using TaskTracker.Core.Helpers;
 
 namespace TaskTracker.API.Controllers
 {
@@ -23,17 +25,29 @@ namespace TaskTracker.API.Controllers
             _mediator = mediator;
         }
 
-        // Create task - any authenticated user
         [HttpPost]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> Create([FromBody] CreateTaskCommand command)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            command.AssignedToUserId = userId!;
+            var role = User.FindFirstValue(ClaimTypes.Role);
+
+            if (role != "Manager")
+            {
+                // Regular users can only assign tasks to themselves
+                command.AssignedToUserId = userId!;
+            }
+            else
+            {
+                // Managers can assign to anyone
+                if (string.IsNullOrEmpty(command.AssignedToUserId))
+                    command.AssignedToUserId = userId; // fallback to self if no user specified
+            }
 
             var taskId = await _mediator.Send(command);
             return Ok(new { Id = taskId });
         }
+
 
         // Update task - only if task belongs to user
         [HttpPut("{id}")]
@@ -72,55 +86,84 @@ namespace TaskTracker.API.Controllers
             var command = new CompleteTaskCommand { Id = id, UserId = userId! };
 
             var completed = await _mediator.Send(command);
-            if (!completed) return Forbid("You are not authorized to complete this task.");
 
-            return NoContent();
+            if (!completed)
+                return Forbid("You are not authorized to complete this task.");
+
+            return Ok("Task completed successfully");
         }
+
 
         // Get task by ID - any authenticated user if they own it, manager can see all
         [HttpGet("{id}")]
+        [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskById(Guid id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var role = User.FindFirstValue(ClaimTypes.Role);
+            var isManager = role == "Manager";
 
-            var query = new GetTaskByIdQuery { Id = id, UserId = userId!, IsManager = role == "Manager" };
+            var query = new GetTaskByIdQuery
+            {
+                Id = id,
+                UserId = isManager ? null : userId, // Managers can access any task
+                IsManager = isManager
+            };
+
             var task = await _mediator.Send(query);
 
-            if (task == null) return NotFound();
+            if (task == null)
+                return NotFound("Task not found or you do not have access.");
+
             return Ok(task);
         }
 
-        // Get all tasks - Managers only
-        [HttpGet("all")]
-        [Authorize(Roles = "Manager")]
-        public async Task<IActionResult> GetAllTasks()
-        {
-            var tasks = await _mediator.Send(new GetAllTasksQuery());
-            return Ok(tasks);
-        }
+
+
         [HttpGet("reports/completion")]
         [Authorize(Roles = "Manager")]
-        public async Task<IActionResult> GetCompletionReport()
+        public async Task<IActionResult> GetTaskCompletionReport()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier); //  JWT or identity claims
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var role = User.FindFirstValue(ClaimTypes.Role);
 
-            var report = await _mediator.Send(new GetTaskCompletionReportQuery(userId));
+            // Pass values via constructor
+            var query = new GetTaskCompletionReportQuery(userId, role == "Manager");
 
+            var report = await _mediator.Send(query);
             return Ok(report);
         }
 
-        // Get all tasks for the logged-in user
-        [HttpGet]
-        [Authorize(Roles = "User,Manager")]
-        public async Task<IActionResult> GetUserTasks()
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var query = new GetAllTasksQuery { AssignedToUserId = userId! }; 
-            var tasks = await _mediator.Send(query);
-            return Ok(tasks);
-        }
 
+        // Get all tasks for the logged-in user
+        [HttpGet("allTasks")]
+        [Authorize(Roles = "User,Manager")]
+        public async Task<ActionResult<PagedList<TaskDto>>> GetAll(
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            [FromQuery] DateTime? fromDate = null,
+            [FromQuery] DateTime? toDate = null)
+        {
+            // Get current user's ID
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            // Determine if the user is a manager (based on role claim)
+            var isManager = User.IsInRole("Manager");
+
+            var query = new GetAllTasksQuery
+            {
+                AssignedToUserId = userId,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                FromDate = fromDate,
+                ToDate = toDate,
+                IsManager = isManager
+            };
+
+            var result = await _mediator.Send(query);
+
+            return Ok(result);
+        }
 
         // Delete task - only if owned by the user or manager
         [HttpDelete("{id}")]
@@ -132,7 +175,8 @@ namespace TaskTracker.API.Controllers
             if (!deleted)
                 return Forbid("You are not authorized to delete this task or it does not exist.");
 
-            return NoContent();
+            return Ok("Task removed successfully!");
+
         }
 
 
