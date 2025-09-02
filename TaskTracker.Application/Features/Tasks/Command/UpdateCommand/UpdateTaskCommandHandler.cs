@@ -22,7 +22,7 @@ namespace TaskTracker.Application.Features.Tasks.Command.UpdateCommand
         public async Task<TaskItem> Handle(UpdateTaskCommand request, CancellationToken cancellationToken)
         {
             // Retrieve task only if it belongs to the given user
-            var existingTask = await _taskRepository.GetByIdAsync(request.Id, request.UserId);
+            var existingTask = await _taskRepository.GetByIdAsync(request.Id, request.AssignedToUserId);
             if (existingTask == null)
                 return null;
 
@@ -35,7 +35,7 @@ namespace TaskTracker.Application.Features.Tasks.Command.UpdateCommand
             await _taskRepository.UpdateAsync(existingTask);
 
             // Invalidate cache to ensure fresh data on next retrieval
-            _cache.Remove($"Task_{request.UserId}_{request.Id}");
+            _cache.Remove($"Task_{request.AssignedToUserId}_{request.Id}");
 
             return existingTask;
         }

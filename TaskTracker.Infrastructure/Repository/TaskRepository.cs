@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using TaskTracker.Application.Features.Common.Interfaces;
+using TaskTracker.Application.Features.Tasks.DTO;
 using TaskTracker.Core.Entity;
 using TaskTracker.Core.Helpers;
 using TaskTracker.Infrastructure.Data;
@@ -52,16 +53,43 @@ namespace TaskTracker.Infrastructure.Repository
             return await PagedList<TaskItem>.CreateAsync(query, pageNumber, pageSize);
         }
 
+        //    public async Task<TaskItem?> GetByIdAsync(Guid id, string? userId = null, bool isManager = false)
+        //    {
+        //        if (isManager)
+        //            return await _context.Tasks
+        //                .AsNoTracking()
+        //                .FirstOrDefaultAsync(t => t.Id == id);
+        //        return await _context.Tasks
+
+        //.AsNoTracking()
+        //.FirstOrDefaultAsync();
+
+
+        //        if (string.IsNullOrEmpty(userId)) return null;
+
+        //        return await _context.Tasks.AsNoTracking()
+        //            .FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
+        //    }
+
         public async Task<TaskItem?> GetByIdAsync(Guid id, string? userId = null, bool isManager = false)
         {
+            IQueryable<TaskItem> query = _context.Tasks.AsNoTracking()
+               .Include(t=>t.User) ;
+
             if (isManager)
-                return await _context.Tasks.AsNoTracking()
-                    .FirstOrDefaultAsync(t => t.Id == id);
+            {
+                // Manager can fetch by Id only
+                return await query.FirstOrDefaultAsync(t => t.Id == id);
+            }
 
-            if (string.IsNullOrEmpty(userId)) return null;
+            if (string.IsNullOrEmpty(userId))
+            {
+                // If not manager and no userId provided → invalid
+                return null;
+            }
 
-            return await _context.Tasks.AsNoTracking()
-                .FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
+            // Regular user must match both Id and AssignedToUserId
+            return await query.FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
         }
 
         public async Task<List<TaskItem>> GetAllAsync(string? userId = null)

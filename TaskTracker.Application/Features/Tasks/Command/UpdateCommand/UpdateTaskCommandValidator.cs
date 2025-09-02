@@ -14,7 +14,7 @@ namespace TaskTracker.Application.Features.Tasks.Command.UpdateCommand
             RuleFor(x => x.Id)
                 .NotEmpty().WithMessage("Task ID is required.");
 
-            RuleFor(x => x.UserId)
+            RuleFor(x => x.AssignedToUserId)
                 .NotEmpty().WithMessage("User ID is required.");
 
             RuleFor(x => x.Title)

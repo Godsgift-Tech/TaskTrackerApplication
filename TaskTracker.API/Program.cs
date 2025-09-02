@@ -20,7 +20,13 @@ builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 
 builder.Services.AddApplication();
 
-builder.Services.AddControllers();
+//builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
+
 builder.Services.AddEndpointsApiExplorer();
 // Database
 builder.Services.AddDbContext<TaskTrackerContext>(options =>
