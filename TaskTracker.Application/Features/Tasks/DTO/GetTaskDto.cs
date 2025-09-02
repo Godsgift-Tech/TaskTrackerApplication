@@ -1,15 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿using System.Text.Json.Serialization;
 
 namespace TaskTracker.Application.Features.Tasks.DTO
 {
-    public class TaskDto
+    public class GetTaskDto
     {
-       
+        [JsonIgnore]
         public Guid Id { get; set; }
         public string Title { get; set; }
         public string Description { get; set; }
@@ -18,6 +13,7 @@ namespace TaskTracker.Application.Features.Tasks.DTO
         public DateTime? CompletedAt { get; set; }
         public int Status { get; set; }
         [JsonIgnore]
+
         public string AssignedToUserId { get; set; }
         public string UserName { get; set; } // optional
     }

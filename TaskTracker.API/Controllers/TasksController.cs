@@ -26,7 +26,7 @@ namespace TaskTracker.API.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "User,Manager")]
+        [Authorize(Roles = "Manager")]
         public async Task<IActionResult> Create([FromBody] CreateTaskCommand command)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -54,28 +54,32 @@ namespace TaskTracker.API.Controllers
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskCommand command)
         {
+            // Validate route id
+            if (id == Guid.Empty)
+                return BadRequest("Invalid task ID.");
+
+            // Always assign the route ID to the command
+            command.Id = id;
+
             // Get logged-in user's ID from claims
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userId))
                 return Unauthorized("User not authenticated.");
 
-            // Checking route ID matches the command ID
-            if (id != command.Id)
-                return BadRequest("Task ID mismatch.");
-
             // Attach user ID from claims
-            command.UserId = userId;
+            command.AssignedToUserId = userId;
 
             var result = await _mediator.Send(command);
 
             if (result == null)
             {
-                // Check if task exists at all for better feedback
-                return Forbid("You are not authorized to update this task or it does not exist.");
+                return NotFound("Task not found or you do not have access.");
             }
 
             return Ok(result);
         }
+
+
 
         // Complete task - only if task belongs to user
         [HttpPatch("{id}/complete")]
@@ -94,7 +98,7 @@ namespace TaskTracker.API.Controllers
         }
 
 
-        // Get task by ID - any authenticated user if they own it, manager can see all
+        // any authenticated user if they own it, manager can see all
         [HttpGet("{id}")]
         [Authorize(Roles = "User,Manager")]
         public async Task<IActionResult> GetTaskById(Guid id)
@@ -165,7 +169,7 @@ namespace TaskTracker.API.Controllers
             return Ok(result);
         }
 
-        // Delete task - only if owned by the user or manager
+        // Delete task only if owned by the user or manager
         [HttpDelete("{id}")]
         [Authorize(Roles = "User,Manager")]
        
