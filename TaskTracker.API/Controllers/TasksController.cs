@@ -44,40 +44,32 @@ namespace TaskTracker.API.Controllers
                     command.AssignedToUserId = userId; // fallback to self if no user specified
             }
 
-            var taskId = await _mediator.Send(command);
-            return Ok(new { Id = taskId });
+            var result = await _mediator.Send(command);
+            return Ok(result); // return the DTO 
         }
 
 
         // Update task - only if task belongs to user
         [HttpPut("{id}")]
-        [Authorize(Roles = "User,Manager")]
+        [Authorize(Roles = "Manager")] //  Only managers allowed
         public async Task<IActionResult> UpdateTask(Guid id, [FromBody] UpdateTaskCommand command)
         {
-            // Validate route id
             if (id == Guid.Empty)
                 return BadRequest("Invalid task ID.");
 
-            // Always assign the route ID to the command
             command.Id = id;
 
-            // Get logged-in user's ID from claims
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userId))
-                return Unauthorized("User not authenticated.");
-
-            // Attach user ID from claims
-            command.AssignedToUserId = userId;
+            // Managers don’t need their own userId assigned
+            command.IsManager = true;
 
             var result = await _mediator.Send(command);
 
             if (result == null)
-            {
-                return NotFound("Task not found or you do not have access.");
-            }
+                return NotFound("Task not found.");
 
             return Ok(result);
         }
+
 
 
 

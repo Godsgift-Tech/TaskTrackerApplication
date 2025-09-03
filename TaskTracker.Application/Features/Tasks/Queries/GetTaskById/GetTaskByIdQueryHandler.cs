@@ -16,12 +16,6 @@ namespace TaskTracker.Application.Features.Tasks.Queries.GetTaskById
             _cache = cache;
         }
 
-        //public async Task<TaskItem?> Handle(GetTaskByIdQuery request, CancellationToken cancellationToken)
-        //{
-        //    return await _taskRepository.GetByIdAsync(request.Id, request.IsManager ? null : request.UserId);
-        //    //  return await _taskRepository.GetByIdAsync(request.Id, request.UserId, request.IsManager);
-
-
         public async Task<GetTaskDto?> Handle(GetTaskByIdQuery request, CancellationToken cancellationToken)
         {
             var cacheKey = $"Task_{request.Id}_{request.UserId}_{request.IsManager}";
@@ -36,9 +30,8 @@ namespace TaskTracker.Application.Features.Tasks.Queries.GetTaskById
             );
 
             if (task == null) return null;
-           
 
-            //  mapping
+                 //  mapping
             var dto = new GetTaskDto
             {
                 Id = task.Id,
@@ -57,7 +50,6 @@ namespace TaskTracker.Application.Features.Tasks.Queries.GetTaskById
 
             return dto;
         }
-
 
     }
 }
