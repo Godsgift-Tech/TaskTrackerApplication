@@ -71,24 +71,39 @@ namespace TaskTracker.Infrastructure.Repository
         //            .FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
         //    }
 
+        //public async Task<TaskItem?> GetByIdAsync(Guid id, string? userId = null, bool isManager = false)
+        //{
+        //    IQueryable<TaskItem> query = _context.Tasks.AsNoTracking()
+        //       .Include(t=>t.User) ;
+
+        //    if (isManager)
+        //    {
+        //        // Manager can fetch by Id only
+        //        return await query.FirstOrDefaultAsync(t => t.Id == id);
+        //    }
+
+        //    if (string.IsNullOrEmpty(userId))
+        //    {
+        //        // If not manager and no userId provided → invalid
+        //        return null;
+        //    }
+
+        //    // Regular user must match both Id and AssignedToUserId
+        //    return await query.FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
+        //}
+
+
         public async Task<TaskItem?> GetByIdAsync(Guid id, string? userId = null, bool isManager = false)
         {
-            IQueryable<TaskItem> query = _context.Tasks.AsNoTracking()
-               .Include(t=>t.User) ;
+            IQueryable<TaskItem> query = _context.Tasks
+               .Include(t => t.User);
 
             if (isManager)
-            {
-                // Manager can fetch by Id only
                 return await query.FirstOrDefaultAsync(t => t.Id == id);
-            }
 
             if (string.IsNullOrEmpty(userId))
-            {
-                // If not manager and no userId provided → invalid
                 return null;
-            }
 
-            // Regular user must match both Id and AssignedToUserId
             return await query.FirstOrDefaultAsync(t => t.Id == id && t.AssignedToUserId == userId);
         }
 
@@ -118,6 +133,11 @@ namespace TaskTracker.Infrastructure.Repository
             _context.Tasks.Update(task);
             await _context.SaveChangesAsync();
         }
+        public async Task ReloadUserAsync(TaskItem task)
+        {
+            await _context.Entry(task).Reference(t => t.User).LoadAsync();
+        }
+
 
         public async Task<bool> DeleteAsync(Guid id, string? userId)
         {

@@ -16,6 +16,8 @@ namespace TaskTracker.Application.Features.Common.Interfaces
         Task<TaskItem?> GetByIdAsync(Guid id, string? userId = null, bool isManager = false);
         Task AddAsync(TaskItem task);
         Task UpdateAsync(TaskItem task);
+        Task ReloadUserAsync(TaskItem task);
+
         Task<bool> DeleteAsync(Guid id, string? userId);
     }
 
